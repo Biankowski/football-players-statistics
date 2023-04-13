@@ -12,8 +12,7 @@ import time
 
 def jogadores_flamengo_url():
     url_flamengo = "https://www.sofascore.com/team/football/flamengo/5981"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"}
 
     response = requests.get(url_flamengo, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -45,17 +44,16 @@ def dynamic_scrap():
         driver = webdriver.Chrome(
             executable_path="C:\\Users\\Biankovsky\\Downloads\\chromedriver\\chromedriver.exe")
 
+
         # Loop pelas URLs do arquivo CSV
         for linha in leitor:
             url = linha['URL']
             driver.get("https://www.sofascore.com" + url)
-            #driver.get(                "https://www.sofascore.com/player/gabriel-barbosa/358554")
             data = []
 
-            time.sleep(10)
-            btn = driver.find_element(
-                By.XPATH, '//*[@id = "downshift-0-toggle-button"]')
-            time.sleep(10)
+            time.sleep(5)
+            btn = driver.find_element(By.XPATH, '//*[@id = "downshift-0-toggle-button"]')
+            time.sleep(7)
             btn.click()
             time.sleep(3)
 
@@ -75,27 +73,69 @@ def dynamic_scrap():
                     break
 
             time.sleep(5)
-            element = driver.find_element(By.XPATH,
-                                          '//*[@aria-activedescendant]')
+            element = driver.find_element(By.XPATH, '//*[@aria-activedescendant]')
             element_id = element.get_attribute('aria-activedescendant')
             item = driver.find_element(
                 By.ID, element_id + f'downshift-0-item-{element_index}')
             time.sleep(5)
             item.click()
-
-            time.sleep(10)
+            time.sleep(3)
+            
             # Extrair os dados da página
             soup = BeautifulSoup(driver.page_source, 'html.parser')
-
+            
             # classe pode mudar depois de um tempo??
             spans = soup.find_all('span', {'class': 'sc-bqWxrE kAIqxV'})
+            start_adding = False
             for span in spans:
-                data.append(span.text)
+                if span.text == '':
+                    pass
+                elif span.text == 'Brasileiro Série A':
+                    start_adding = True
+                    data.append(span.text)
+                elif start_adding:
+                    data.append(span.text)
+
+            # Extrair nome do jogador
+            nomes = soup.find_all('h2', {'class': 'sc-bqWxrE eNZjKc'})
+            for elemento in nomes:
+                nome_jogador = elemento.text
+                
+            # Extrair informações dos jogadores
+            informacoes_jogador = soup.find_all('div', {'class':'sc-hLBbgP sc-eDvSVe gjJmZQ lXUNw'})
+            for elemento in informacoes_jogador:
+                informacoes = elemento.text
+                
+            salario = soup.find_all('div', {'class':'sc-bqWxrE gsYByW'})
+            for elemento in salario:
+                salary = elemento.text
+                
+            # Extrai as informações relevantes da string usando regex
+            nationality = re.findall(r'Nationality(\w{3})', informacoes)[0]
+            birth_date = re.findall(r'(\d{1,2}\s\w{3}\s\d{4})', informacoes)[0]
+            height = re.findall(r'Height(\d{3}\s\w{2})', informacoes)[0]
+            preferred_foot = re.findall(r'Preferred foot(\w+)', informacoes)[0]
+            position = re.findall(r'Position(\w)', informacoes)[0]
+            shirt_number = re.findall(r'Shirt number(\d+)', informacoes)[0]
+
+            match = re.search(r'(Left|Right)', preferred_foot)
+            if match:
+                preferred_foot = match.group(1)
+            else:
+                preferred_foot = None                
 
             final_data = data[:100]
             pairs = [(final_data[i], final_data[i+1])
                      for i in range(0, len(final_data), 2)]
             dicionario = dict(pairs)
+            dicionario.update({'Nome do Jogador': nome_jogador,
+                               'Nationality': nationality,
+                               'Birth date': birth_date,
+                                'Height': height,
+                                'Preferred foot': preferred_foot,
+                                'Position': position,
+                                'Shirt number': shirt_number,
+                                'Salary' : salary})
             colunas = list(dicionario.keys())
             valores = list(dicionario.values())
 
